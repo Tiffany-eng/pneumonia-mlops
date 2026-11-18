@@ -22,7 +22,7 @@ Chest X-rays are classified with a MobileNetV2 transfer-learning model. The syst
 
 ## Repo structure
 ```
-notebook/pneumonia_pipeline.ipynb   preprocessing, training, evaluation
+notebook/pneumonia-mlops.ipynb   preprocessing, training, evaluation
 src/
   preprocessing.py   dataset pipeline (small single-purpose functions)
   model.py           build / train / evaluate
@@ -57,7 +57,7 @@ models/pneumonia_model.h5   trained model
 git clone <repo-url> && cd pneumonia-mlops
 pip install -r requirements.txt
 # 1. get data + train (notebook does both)
-jupyter notebook notebook/pneumonia_pipeline.ipynb
+jupyter notebook notebook/pneumonia-mlops.ipynb
 # 2a. run locally
 uvicorn api.main:app --port 8000
 API_URL=http://localhost:8000 streamlit run ui/app.py
@@ -93,6 +93,19 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) (VM + docker compose, Terraform for AWS).
 
 ## Optional: ONNX
 `pip install -r requirements-onnx.txt && python -m src.onnx_export` converts the model and prints Keras vs ONNX Runtime latency. Run the API with `USE_ONNX=1` to use it.
+
+## Data insights & feature interpretations
+Exploratory Data Analysis (EDA) on the chest X-ray dataset revealed three key feature signals:
+
+1. **Class Balance**:
+   - *Distribution*: Training set contains **3,883 PNEUMONIA** vs **1,349 NORMAL** (~74.2% pneumonia, a 2.88:1 ratio); test set contains **390 PNEUMONIA** vs **234 NORMAL** (~62.5% pneumonia).
+   - *Interpretation*: A naive classifier predicting all pneumonia would score ~74% accuracy. To prevent majority-class bias, we employ inverse-frequency class weights (NORMAL: 1.94, PNEUMONIA: 0.67) and prioritize Recall, Precision, F1-score, and AUC-ROC over raw accuracy.
+2. **Brightness & Contrast**:
+   - *Measurements*: Mean pixel brightness is nearly identical (NORMAL: 123.3 vs PNEUMONIA: 122.8), but contrast exhibits a distinct gap (NORMAL: 61.7 vs PNEUMONIA: 56.7).
+   - *Interpretation*: Healthy air-filled lungs yield sharp contrast against bright ribs and mediastinum. Pneumonia produces fluid infiltrates and consolidation that cause diffuse pulmonary haziness (opacification), noticeably lowering overall contrast.
+3. **Image Dimensions**:
+   - *Measurements*: Scan dimensions vary widely across acquisition machines (NORMAL: 1,672.0 × 1,387.2 px vs PNEUMONIA: 1,216.4 × 846.3 px).
+   - *Interpretation*: Standardizing all images to a uniform 224 × 224 RGB tensor normalizes dimensional variation and aspect ratios, enabling efficient batch processing in MobileNetV2 while preserving diagnostic thoracic features.
 
 ## Model results
 Evaluated on the held-out test set (624 images: 234 Normal, 390 Pneumonia):
