@@ -1,0 +1,28 @@
+services:
+  api:                      # scale with: docker compose up --build --scale api=3
+    build: { context: ., dockerfile: Dockerfile.api }
+    environment:
+      - AUTO_RETRAIN_THRESHOLD=50
+      - MIN_RETRAIN_IMAGES=20
+      - USE_ONNX=0
+    volumes:
+      - models:/app/models
+      - uploads:/app/data/uploads
+      - dbdata:/app/db
+      - ./data/train:/app/data/train
+    expose: ["8000"]
+  nginx:
+    image: nginx:alpine
+    volumes: ["./nginx.conf:/etc/nginx/nginx.conf:ro"]
+    ports: ["8080:80"]      # load-balanced API entry point (use this as the Locust host)
+    depends_on: [api]
+  ui:
+    build: { context: ., dockerfile: Dockerfile.ui }
+    environment:
+      - API_URL=http://nginx
+    ports: ["8501:8501"]
+    depends_on: [nginx]
+volumes:
+  models:
+  uploads:
+  dbdata:
